@@ -1,44 +1,58 @@
 pipeline {
     agent any
 
-    environment {
-        GIT_CRED = 'github_pat'
-        REPO_URL = 'https://github.com/DevopsAnkit2026/my-enterprise-app.git'
-    }
-
     stages {
-        stage('DEV Build & Test') {
-            when { branch 'dev' }
+
+        stage('Checkout') {
             steps {
-                echo "Running DEV pipeline..."
-                sh 'ls -l'
+                checkout scm
             }
         }
 
-        stage('QA Deploy') {
-            when { branch 'qa' }
+        stage('Build') {
             steps {
-                echo "QA deployment..."
+                echo "No build needed for HTML"
             }
         }
 
-        stage('STAGE Deploy') {
-            when { branch 'stage' }
+        stage('Deploy on Server') {
+            when {
+                branch 'dev'
+            }
             steps {
-                echo "STAGE deployment..."
+                echo "Deploying to DEV Server"
+                sh 'sudo cp -f index.html /var/www/html/index.html'
             }
         }
 
-        stage('PROD Deploy') {
-            when { branch 'prod' }
+        stage('Deploy to QA') {
+            when {
+                branch 'qa'
+            }
             steps {
-                echo "Production deployment..."
+                echo "Deploying to QA Server"
+                sh 'sudo cp -f index.html /var/www/html/index.html'
             }
         }
-    }
 
-    post {
-        success { echo "Pipeline Success ✔️" }
-        failure { echo "Pipeline Failed ❌" }
+        stage('Deploy to Stage') {
+            when {
+                branch 'stage'
+            }
+            steps {
+                echo "Deploying to Stage Server"
+                sh 'sudo cp -f index.html /var/www/html/index.html'
+            }
+        }
+
+        stage('Deploy to Prod') {
+            when {
+                branch 'prod'
+            }
+            steps {
+                echo "Deploying to PROD Server"
+                sh 'sudo cp -f index.html /var/www/html/index.html'
+            }
+        }
     }
 }
