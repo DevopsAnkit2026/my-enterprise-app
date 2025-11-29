@@ -1,37 +1,38 @@
 pipeline {
     agent any
-    
+
     tools {
-        maven 'maven3'      // Jenkins → Global Tool Config me jo name diya hai
-        jdk 'jdk-21'        // Jenkins me JDK ka name
+        maven 'Maven-3'        // Jenkins → Global Tool Config → Maven name
+        jdk 'Java-21'          // Jenkins → Global Tool Config → JDK name
     }
 
     stages {
+        
+        stage('Check Tools Version') {
+            steps {
+                sh '''
+                    echo "=== JAVA VERSION ==="
+                    java -version
 
-        stage('Checkout') {
+                    echo "=== MAVEN VERSION ==="
+                    mvn -version
+                '''
+            }
+        }
+
+        stage('Checkout Code') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Build') {
+        stage('Build with Maven') {
             steps {
                 sh '''
-                    mvn clean package -DskipTests
+                    echo "Starting Maven Build..."
+                    mvn clean package
                 '''
             }
-        }
-
-        stage('Archive Artifact') {
-            steps {
-                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
-            }
-        }
-    }
-
-    post {
-        always {
-            echo "Build completed."
         }
     }
 }
