@@ -1,6 +1,16 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'Maven3'
+        jdk 'Java21'
+    }
+
+    environment {
+        ARTIFACTORY_SERVER = "jfrog-server"   // Jenkins में दिया हुआ ID
+        ARTIFACT_PATH = "target/*.jar"        // WAR हुआ तो बाद में बदल देंगे
+    }
+
     stages {
 
         stage('Checkout') {
@@ -11,47 +21,46 @@ pipeline {
 
         stage('Build') {
             steps {
-                echo "No build needed for HTML"
+                sh "mvn clean package -Dmaven.test.skip=true"
             }
         }
 
-        stage('Deploy on Server') {
-            when {
-                branch 'dev'
-            }
+        stage('Upload Artifact to JFrog') {
             steps {
-                echo "Deploying to DEV Server"
-                sh 'sudo cp -f index.html /var/www/html/index.html'
-            }
-        }
+                script {
 
-        stage('Deploy to QA') {
-            when {
-                branch 'qa'
-            }
-            steps {
-                echo "Deploying to QA Server"
-                sh 'sudo cp -f index.html /var/www/html/index.html'
-            }
-        }
+                    def server = Artifactory.server(ARTIFACTORY_SERVER)
 
-        stage('Deploy to Stage') {
-            when {
-                branch 'stage'
-            }
-            steps {
-                echo "Deploying to Stage Server"
-                sh 'sudo cp -f index.html /var/www/html/index.html'
-            }
-        }
+                    def targetRepo = ""
 
-        stage('Deploy to Prod') {
-            when {
-                branch 'prod'
-            }
-            steps {
-                echo "Deploying to PROD Server"
-                sh 'sudo cp -f index.html /var/www/html/index.html'
+                    // Branch → Artifactory repo mapping
+                    if (env.BRANCH_NAME == "dev") {
+                        targetRepo = "maven-dev-local/"
+                    }
+                    else if (env.BRANCH_NAME == "qa") {
+                        targetRepo = "maven-qa-local/"
+                    }
+                    else if (env.BRANCH_NAME == "stage") {
+                        targetRepo = "maven-stage-local/"
+                    }
+                    else if (env.BRANCH_NAME == "prod") {
+                        targetRepo = "maven-prod-local/"
+                    }
+                    else {
+                        error "Unknown branch: ${env.BRANCH_NAME}"
+                    }
+
+                    def uploadSpec = """{
+                      "files": [
+                        {
+                          "pattern": "${ARTIFACT_PATH}",
+                          "target": "${targetRepo}"
+                        }
+                      ]
+                    }"""
+
+                    server.upload spec: uploadSpec
+                }
             }
         }
     }
