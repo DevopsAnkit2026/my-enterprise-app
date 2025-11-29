@@ -1,44 +1,67 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'Maven3'
+        jdk 'Java21'
+    }
+
     environment {
-        GIT_CRED = 'github_pat'
-        REPO_URL = 'https://github.com/DevopsAnkit2026/my-enterprise-app.git'
+        ARTIFACTORY_SERVER = "jfrog-server"   // Jenkins में दिया हुआ ID
+        ARTIFACT_PATH = "target/*.jar"        // WAR हुआ तो बाद में बदल देंगे
     }
 
     stages {
-        stage('DEV Build & Test') {
-            when { branch 'dev' }
+
+        stage('Checkout') {
             steps {
-                echo "Running DEV pipeline..."
-                sh 'ls -l'
+                checkout scm
             }
         }
 
-        stage('QA Deploy') {
-            when { branch 'qa' }
+        stage('Build') {
             steps {
-                echo "QA deployment..."
+                sh "mvn clean package -Dmaven.test.skip=true"
             }
         }
 
-        stage('STAGE Deploy') {
-            when { branch 'stage' }
+        stage('Upload Artifact to JFrog') {
             steps {
-                echo "STAGE deployment..."
+                script {
+
+                    def server = Artifactory.server(ARTIFACTORY_SERVER)
+
+                    def targetRepo = ""
+
+                    // Branch → Artifactory repo mapping
+                    if (env.BRANCH_NAME == "dev") {
+                        targetRepo = "maven-dev-local/"
+                    }
+                    else if (env.BRANCH_NAME == "qa") {
+                        targetRepo = "maven-qa-local/"
+                    }
+                    else if (env.BRANCH_NAME == "stage") {
+                        targetRepo = "maven-stage-local/"
+                    }
+                    else if (env.BRANCH_NAME == "prod") {
+                        targetRepo = "maven-prod-local/"
+                    }
+                    else {
+                        error "Unknown branch: ${env.BRANCH_NAME}"
+                    }
+
+                    def uploadSpec = """{
+                      "files": [
+                        {
+                          "pattern": "${ARTIFACT_PATH}",
+                          "target": "${targetRepo}"
+                        }
+                      ]
+                    }"""
+
+                    server.upload spec: uploadSpec
+                }
             }
         }
-
-        stage('PROD Deploy') {
-            when { branch 'prod' }
-            steps {
-                echo "Production deployment..."
-            }
-        }
-    }
-
-    post {
-        success { echo "Pipeline Success ✔️" }
-        failure { echo "Pipeline Failed ❌" }
     }
 }
