@@ -1,35 +1,27 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'Maven-3'
+        jdk 'Java-21'
+    }
+
     environment {
-        JFROG_SERVER = 'my-artifactory'
+        MVN_HOME = tool 'Maven-3'
     }
 
     stages {
-
         stage('Build') {
             steps {
-                sh 'mvn clean package'
+                sh "${MVN_HOME}/bin/mvn -version"
+                sh "${MVN_HOME}/bin/mvn clean package"
             }
         }
+    }
 
-        stage('Upload to JFrog') {
-            steps {
-                script {
-                    def server = Artifactory.server(env.JFROG_SERVER)
-
-                    def uploadSpec = """{
-                      "files": [
-                        {
-                          "pattern": "target/*.war",
-                          "target": "libs-release-local/myapp/"
-                        }
-                      ]
-                    }"""
-
-                    server.upload(uploadSpec)
-                }
-            }
+    post {
+        always {
+            echo "Build finished!"
         }
     }
 }
